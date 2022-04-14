@@ -1,6 +1,11 @@
 # insurance-cost-prediction
 Web service with insurance cost prediction and collectiong data
 
+prepare environment with pip:<br>
+pip install -r requirements.txt<br>
+or with conda:<br>
+conda create --name <env> --file requirements.txt<br>
+
 run app:<br>
 python app_cost.py<br>
 open website:<br>
