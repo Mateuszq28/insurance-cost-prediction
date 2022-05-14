@@ -10,7 +10,7 @@ import io
 import base64
 import sqlite3
 from currency_converter import CurrencyConverter
-from joblib import load
+import joblib
 import sklearn
 
 app = Flask(__name__)
@@ -54,17 +54,17 @@ def addToDataBase_not_formatted(today_date, height, weight, age, sex, bmi, child
             sqliteConnection.close()
             print("Zakończono połączenie z bazą danych!")
 
-def addToDataBase_formatted(today_date, height, weight, age, is_man, bmi, children, is_smoking, is_southwest, is_southeast, is_northwest, is_northeast, expenses):
+def addToDataBase_formatted(today_date, height, weight, age, is_man, bmi, children, is_smoking, is_region_north, is_region_east, expenses):
     try:
         # łączenie z bazą danych
         sqliteConnection = sqlite3.connect('cost_base.db')
         cursor = sqliteConnection.cursor()
         print("Nawiązano połączenie z bazą danych!")
         # dodanie danych do tabeli
-        sqlite_insert_query = '''INSERT INTO data_formatted (date_written, height, b_weight, age, is_man, bmi,
-                                 children, is_smoking, is_southwest, is_southeast, is_northwest, is_northeast, expenses_ground_true) VALUES (
-                                 {0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12})'''.format(
-                                 today_date, height, weight, age, is_man, bmi, children, is_smoking, is_southwest, is_southeast, is_northwest, is_northeast, expenses)
+        sqlite_insert_query = '''INSERT INTO data_formatted (date_written, height, b_weight, age, is_woman, bmi,
+                                 children, is_smoking, is_region_north, is_region_east, expenses_ground_true) VALUES (
+                                 {0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10})'''.format(
+                                 today_date, height, weight, age, is_man, bmi, children, is_smoking, is_region_north, is_region_east, expenses)
 
         count = cursor.execute(sqlite_insert_query)
         sqliteConnection.commit()
@@ -77,17 +77,17 @@ def addToDataBase_formatted(today_date, height, weight, age, is_man, bmi, childr
             sqliteConnection.close()
             print("Zakończono połączenie z bazą danych!")
 
-def addToDataBase_classifier_input(age, is_man, bmi, children, is_smoking, is_southwest, is_southeast, is_northwest, is_northeast, expenses):
+def addToDataBase_classifier_input(age, is_man, bmi, children, is_smoking, is_region_north, is_region_east, expenses):
     try:
         # łączenie z bazą danych
         sqliteConnection = sqlite3.connect('cost_base.db')
         cursor = sqliteConnection.cursor()
         print("Nawiązano połączenie z bazą danych!")
         # dodanie danych do tabeli
-        sqlite_insert_query = '''INSERT INTO data_formatted (age, is_man, bmi,
-                                 children, is_smoking, is_southwest, is_southeast, is_northwest, is_northeast, expenses_ground_true) VALUES (
-                                 {0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9})'''.format(
-                                 age, is_man, bmi, children, is_smoking, is_southwest, is_southeast, is_northwest, is_northeast, expenses)
+        sqlite_insert_query = '''INSERT INTO data_formatted (age, is_woman, bmi,
+                                 children, is_smoking, is_region_north, is_region_east, expenses_ground_true) VALUES (
+                                 {0}, {1}, {2}, {3}, {4}, {5}, {6}, {7})'''.format(
+                                 age, is_man, bmi, children, is_smoking, is_region_north, is_region_east, expenses)
 
         count = cursor.execute(sqlite_insert_query)
         sqliteConnection.commit()
@@ -121,19 +121,19 @@ def calculate_cost():
 
     addToDataBase_not_formatted(today_date, height, weight, age, sex, bmi, children, smoking, region, expenses)
 
-    is_man = int(sex == "male")
+    is_woman = int(sex == "female")
     is_smoking = int(smoking == "yes")
-    is_southwest = int(region == "southwest")
-    is_southeast = int(region == "southeast")
-    is_northwest = int(region == "northwest")
-    is_northeast = int(region == "northeast")
+    is_region_north = int(region == "northwest" or region == "northeast")
+    is_region_east = int(region == "southeast" or region == "northeast")
 
-    addToDataBase_formatted(today_date, height, weight, age, is_man, bmi, children, is_smoking, is_southwest, is_southeast, is_northwest, is_northeast, expenses)
-    addToDataBase_classifier_input(age, is_man, bmi, children, is_smoking, is_southwest, is_southeast, is_northwest, is_northeast, expenses)
+    addToDataBase_formatted(today_date, height, weight, age, is_woman, bmi, children, is_smoking, is_region_north, is_region_east, expenses)
+    addToDataBase_classifier_input(age, is_woman, bmi, children, is_smoking, is_region_north, is_region_east, expenses)
 
-    input_vector = [age, is_man, bmi, children, is_smoking, is_southwest, is_southeast, is_northwest, is_northeast]
-    model = load_model('model.h5')
-    expenses_d = round(model.predict([input_vector])[0], 2)
+    input_vector = [age, is_woman, bmi, children, is_smoking, is_region_north, is_region_east]
+    sc = joblib.load("scaler")
+    model = joblib.load('cost_predictor')
+    input_vector_sc = sc.transform([input_vector])
+    expenses_d = round(model.predict(input_vector_sc)[0], 2)
     print(expenses_d)
     c = CurrencyConverter()
     dolar_price = c.convert(1, 'USD', 'PLN')
